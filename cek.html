@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cek Pemasangan - Absensi ELS</title>
+<link rel="icon" type="image/png" href="icons/favicon-32.png">
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#fff8f3;color:#1f2937}
+  .wrap{max-width:560px;margin:0 auto;padding:20px 16px 40px}
+  h1{font-size:22px;margin:6px 0 4px} .sub{color:#6b7280;font-size:14px;line-height:1.5;margin:0 0 16px}
+  .row{display:flex;gap:12px;background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);border-left:5px solid #d1d5db}
+  .row.ok{border-left-color:#16a34a}.row.bad{border-left-color:#dc2626;background:#fef2f2}.row.warn{border-left-color:#f59e0b;background:#fffbeb}.row.info{border-left-color:#3b82f6}
+  .ic{font-size:20px;line-height:1.3}.row b{font-size:14.5px}.msg{font-size:13.5px;color:#4b5563;margin-top:2px;line-height:1.5;word-break:break-word}
+  #summary{font-weight:800;font-size:16px;margin:14px 0}
+  button{width:100%;padding:13px;border:0;border-radius:12px;background:#ff7a1a;color:#fff;font-weight:800;font-size:15px}
+  a{color:#e2590a;font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Cek Pemasangan</h1>
+  <p class="sub">Halaman ini memeriksa apakah aplikasi absensi sudah terpasang dengan benar di GitHub. Tunggu beberapa detik sampai semua baris selesai. Baris bertanda &#10060; adalah yang perlu diperbaiki.</p>
+  <div id="list"></div>
+  <div id="summary"></div>
+  <button id="copy" type="button">Salin hasil (untuk dikirim)</button>
+  <p class="sub" style="margin-top:14px"><a href="./">Buka aplikasi</a></p>
+</div>
+<script>
+(function(){
+  var URL_RE = /^https:\/\/script\.google\.com\/macros\/s\/[^\/]+\/exec$/;
+  var listEl = document.getElementById('list'), rows = [], installEvent = null;
+  window.addEventListener('beforeinstallprompt', function(e){ e.preventDefault(); installEvent = e; });
+  function add(name){
+    var d = document.createElement('div'); d.className = 'row';
+    d.innerHTML = '<span class="ic">&#9203;</span><div><b></b><div class="msg">Memeriksa...</div></div>';
+    d.querySelector('b').textContent = name; listEl.appendChild(d);
+    var r = {name: name, el: d, state: 'wait', text: ''}; rows.push(r); return r;
+  }
+  function set(r, state, text){
+    r.state = state; r.text = text; r.el.className = 'row ' + state;
+    r.el.querySelector('.ic').textContent = {ok:'\u2705', warn:'\u26A0\uFE0F', bad:'\u274C', info:'\u2139\uFE0F'}[state];
+    r.el.querySelector('.msg').textContent = text;
+  }
+  function get(u){ return fetch(u, {cache:'no-store'}).then(function(r){ return r.text().then(function(t){ return {ok:r.ok, status:r.status, text:t}; }); }); }
+  function getJson(txt){ try{ return JSON.parse(txt); }catch(e){ return null; } }
+  function short(u){ return u.length > 62 ? u.slice(0, 48) + '...' + u.slice(-10) : u; }
+  function inApp(){
+    var ua = navigator.userAgent || '';
+    if(/FBAN|FBAV|FB_IAB|Instagram|Line\/|MicroMessenger|TikTok|musical_ly|BytedanceWebview|Snapchat|GSA\/|; wv\)/i.test(ua)) return true;
+    return /iPhone|iPad|iPod/.test(ua) && navigator.standalone !== true && !/Safari|CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+  }
+  var ctx = {indexText: '', configText: '', url: '', serverVersion: ''};
+
+  var r1 = add('Alamat memakai https'), r2 = add('Dibuka lewat browser biasa'), r3 = add('Berkas lengkap di GitHub'), r4 = add('Alamat server terisi'),
+      r5 = add('Server menjawab'), r6 = add('Jalur panggilan dari aplikasi'), r7 = add('Versi aplikasi dan server'), r8 = add('Manifest aplikasi'),
+      r9 = add('Service worker'), r10 = add('Bisa dipasang'), r11 = add('Izin kamera dan lokasi');
+
+  var secure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  set(r1, secure ? 'ok' : 'bad', secure ? location.origin + location.pathname.replace(/[^\/]*$/, '') : 'Halaman dibuka lewat http. Aplikasi hanya bisa dipasang lewat https (alamat github.io otomatis https).');
+  set(r2, inApp() ? 'warn' : 'ok', inApp() ? 'Halaman ini dibuka dari dalam aplikasi lain (WhatsApp/Facebook/dll). Di sana pilihan memasang tidak ada. Salin alamatnya lalu buka lewat Chrome (Android) atau Safari (iPhone).' : 'Ya, bukan di dalam aplikasi lain.');
+
+  var files = ['index.html', 'manifest.webmanifest', 'sw.js', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
+  Promise.all(files.map(function(f){ return fetch(f, {cache:'no-store'}).then(function(r){ return {f: f, ok: r.ok, r: r}; }).catch(function(){ return {f: f, ok: false}; }); }))
+  .then(function(res){
+    var miss = res.filter(function(x){ return !x.ok; }).map(function(x){ return x.f; });
+    set(r3, miss.length ? 'bad' : 'ok', miss.length ? 'Berkas tidak ditemukan: ' + miss.join(', ') + '. Upload ulang ke GitHub (folder "icons" juga harus ikut, dan semua berkas harus di tempat yang sama dengan cek.html).' : 'Semua ' + files.length + ' berkas ada.');
+    return get('index.html');
+  }).then(function(x){ ctx.indexText = x.ok ? x.text : ''; return get('config.js').catch(function(){ return {ok:false, text:''}; }); })
+  .then(function(x){
+    ctx.configText = x.ok ? x.text : '';
+    var mi = /ELS_API_URL\s*=\s*window\.ELS_API_URL\s*\|\|\s*'([^']*)'/.exec(ctx.indexText), mc = /ELS_URL_CONFIG\s*=\s*'([^']*)'/.exec(ctx.configText);
+    var iu = mi ? mi[1].trim() : '', cu = mc ? mc[1].trim() : '';
+    var from = '';
+    if(URL_RE.test(cu)){ ctx.url = cu; from = 'config.js'; } else if(URL_RE.test(iu)){ ctx.url = iu; from = 'index.html'; }
+    if(ctx.url) set(r4, 'ok', 'Terisi di ' + from + ': ' + short(ctx.url));
+    else {
+      var salah = [cu, iu].filter(function(v){ return v && v.indexOf('GANTI_DENGAN') !== 0; });
+      set(r4, 'bad', salah.length ? 'Alamat ada tetapi bentuknya salah: "' + short(salah[0]) + '". Harus diawali https://script.google.com/macros/s/ dan diakhiri /exec.' : 'Belum diisi. Isi alamat web app Apps Script di config.js (atau di index.html, cari tulisan GANTI_DENGAN_ALAMAT_WEB_APP_APPS_SCRIPT).');
+    }
+    if(!ctx.url){ set(r5, 'bad', 'Dilewati karena alamat server belum benar.'); set(r6, 'bad', 'Dilewati karena alamat server belum benar.'); set(r7, 'info', 'Dilewati.'); return; }
+    return fetch(ctx.url + '?ping=1', {credentials:'omit'}).then(function(r){ return r.text(); }).then(function(t){
+      var j = getJson(t);
+      if(j && j.ok){ ctx.serverVersion = j.version || ''; set(r5, 'ok', 'Server menjawab (versi ' + (j.version || '?') + ').'); }
+      else set(r5, 'bad', 'Server menjawab halaman web/halaman login, bukan data. Penyebab: akses web app belum "Siapa saja", atau Code.gs terbaru belum di-deploy sebagai Versi baru.');
+    }, function(){ set(r5, 'bad', 'Tidak bisa terhubung ke server. Cek internet, alamat server, dan pastikan akses web app "Siapa saja".'); })
+    .then(function(){
+      return fetch(ctx.url, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({fn:'apiPing', args:[]}), credentials:'omit', redirect:'follow'})
+        .then(function(r){ return r.text(); }).then(function(t){
+          var j = getJson(t);
+          if(j && typeof j.ok === 'boolean') set(r6, 'ok', 'Aplikasi bisa memanggil fungsi server (login, absen, dll akan berfungsi).');
+          else set(r6, 'bad', 'Server belum bisa melayani panggilan dari aplikasi. Deploy Code.gs terbaru sebagai Versi baru (harus ada fungsi doPost).');
+        }, function(){ set(r6, 'bad', 'Panggilan ditolak browser (CORS) atau jaringan terputus. Pastikan akses web app "Siapa saja" lalu deploy Versi baru.'); });
+    }).then(function(){
+      var cv = /CLIENT_VERSION\s*=\s*'([^']+)'/.exec(ctx.indexText); cv = cv ? cv[1] : '';
+      if(!ctx.serverVersion) set(r7, 'warn', 'Versi server tidak diketahui (lihat baris "Server menjawab").');
+      else if(cv && cv === ctx.serverVersion) set(r7, 'ok', 'Sama: ' + cv + '.');
+      else set(r7, 'warn', 'Berbeda: aplikasi ' + (cv || '?') + ', server ' + ctx.serverVersion + '. Perbarui yang lebih lama (Code.gs -> deploy Versi baru, atau unggah index.html terbaru).');
+    });
+  }).catch(function(e){ set(r4, 'bad', 'Pemeriksaan terhenti: ' + (e && e.message || e)); });
+
+  get('manifest.webmanifest').then(function(x){
+    var m = getJson(x.text), sz = {};
+    if(!x.ok || !m) return set(r8, 'bad', 'Manifest tidak terbaca.');
+    (m.icons || []).forEach(function(i){ sz[i.sizes] = true; });
+    var okM = m.name && m.start_url && (m.display === 'standalone' || m.display === 'fullscreen') && sz['192x192'] && sz['512x512'];
+    set(r8, okM ? 'ok' : 'bad', okM ? 'Terbaca: "' + m.name + '", tampil sebagai aplikasi, ikon 192 dan 512.' : 'Manifest kurang lengkap (nama, start_url, display, atau ikon 192/512).');
+  }, function(){ set(r8, 'bad', 'Manifest tidak bisa dimuat.'); });
+
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').then(function(){ return navigator.serviceWorker.ready; })
+      .then(function(reg){ set(r9, 'ok', 'Aktif (cakupan ' + reg.scope + ').'); }, function(e){ set(r9, 'bad', 'Gagal diaktifkan: ' + (e && e.message || e)); });
+  } else set(r9, 'bad', 'Browser ini tidak mendukung service worker (aplikasi tidak bisa dipasang).');
+
+  var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  var isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent || '');
+  setTimeout(function(){
+    if(standalone) set(r10, 'ok', 'Sedang dibuka sebagai aplikasi yang sudah terpasang.');
+    else if(installEvent) set(r10, 'ok', 'Browser siap memasang. Di aplikasi, tombol "Pasang Sekarang" tersedia (atau menu \u22EE > Instal aplikasi).');
+    else if(isIOS) set(r10, 'info', 'iPhone tidak punya tombol pasang otomatis: buka lewat Safari, ketuk Bagikan > Tambah ke Layar Utama.');
+    else set(r10, 'warn', 'Browser belum menawarkan pemasangan. Kemungkinan: aplikasi sudah terpasang, halaman dibuka lewat aplikasi lain, atau bukan Chrome. Coba menu \u22EE > Instal aplikasi.');
+  }, 3500);
+
+  (function(){
+    var out = [];
+    function q(name){ return navigator.permissions && navigator.permissions.query ? navigator.permissions.query({name: name}).then(function(s){ return name + ': ' + s.state; }, function(){ return name + ': tidak diketahui'; }) : Promise.resolve(name + ': tidak diketahui'); }
+    Promise.all([q('camera'), q('geolocation')]).then(function(a){ set(r11, 'info', a.join(' | ').replace('camera', 'kamera').replace('geolocation', 'lokasi') + ' (granted = diizinkan, denied = ditolak, prompt = akan ditanya)'); });
+  })();
+
+  var summaryEl = document.getElementById('summary');
+  function summarize(){
+    var wait = rows.filter(function(r){ return r.state === 'wait'; }).length, bad = rows.filter(function(r){ return r.state === 'bad'; }).length, warn = rows.filter(function(r){ return r.state === 'warn'; }).length;
+    if(wait){ summaryEl.textContent = 'Memeriksa... (' + wait + ' baris lagi)'; return; }
+    summaryEl.textContent = bad ? '\u274C Ada ' + bad + ' masalah. Perbaiki baris bertanda \u274C lalu muat ulang halaman ini.' : (warn ? '\u26A0\uFE0F Siap, tetapi baca baris bertanda \u26A0\uFE0F.' : '\u2705 Semua siap.');
+  }
+  setInterval(summarize, 400);
+  document.getElementById('copy').addEventListener('click', function(){
+    var t = 'Cek Pemasangan ' + location.href + '\n' + rows.map(function(r){ return ({ok:'[OK]', warn:'[PERHATIAN]', bad:'[MASALAH]', info:'[INFO]', wait:'[...]'}[r.state]) + ' ' + r.name + ': ' + r.text; }).join('\n') + '\nBrowser: ' + navigator.userAgent;
+    function done(){ var b = document.getElementById('copy'); b.textContent = 'Tersalin. Tempel di chat.'; }
+    try{ navigator.clipboard.writeText(t).then(done, function(){ window.prompt('Salin teks ini:', t); }); }catch(e){ window.prompt('Salin teks ini:', t); }
+  });
+})();
+</script>
+</body>
+</html>
