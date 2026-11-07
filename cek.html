@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Cek Pemasangan - Absensi ELS</title>
-<link rel="icon" type="image/png" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" href="favicon-32.png">
 <style>
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#fff8f3;color:#1f2937}
   .wrap{max-width:560px;margin:0 auto;padding:20px 16px 40px}
@@ -60,11 +60,11 @@
   set(r1, secure ? 'ok' : 'bad', secure ? location.origin + location.pathname.replace(/[^\/]*$/, '') : 'Halaman dibuka lewat http. Aplikasi hanya bisa dipasang lewat https (alamat github.io otomatis https).');
   set(r2, inApp() ? 'warn' : 'ok', inApp() ? 'Halaman ini dibuka dari dalam aplikasi lain (WhatsApp/Facebook/dll). Di sana pilihan memasang tidak ada. Salin alamatnya lalu buka lewat Chrome (Android) atau Safari (iPhone).' : 'Ya, bukan di dalam aplikasi lain.');
 
-  var files = ['index.html', 'manifest.webmanifest', 'sw.js', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
+  var files = ['index.html', 'manifest.webmanifest', 'sw.js', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
   Promise.all(files.map(function(f){ return fetch(f, {cache:'no-store'}).then(function(r){ return {f: f, ok: r.ok, r: r}; }).catch(function(){ return {f: f, ok: false}; }); }))
   .then(function(res){
     var miss = res.filter(function(x){ return !x.ok; }).map(function(x){ return x.f; });
-    set(r3, miss.length ? 'bad' : 'ok', miss.length ? 'Berkas tidak ditemukan: ' + miss.join(', ') + '. Upload ulang ke GitHub (folder "icons" juga harus ikut, dan semua berkas harus di tempat yang sama dengan cek.html).' : 'Semua ' + files.length + ' berkas ada.');
+    set(r3, miss.length ? 'bad' : 'ok', miss.length ? 'Berkas tidak ditemukan: ' + miss.join(', ') + '. Upload berkas itu ke GitHub. Semua berkas (termasuk gambar ikon .png) harus berada di halaman paling depan repository, sejajar dengan index.html dan cek.html.' : 'Semua ' + files.length + ' berkas ada.');
     return get('index.html');
   }).then(function(x){ ctx.indexText = x.ok ? x.text : ''; return get('config.js').catch(function(){ return {ok:false, text:''}; }); })
   .then(function(x){

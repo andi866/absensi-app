@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Absensi Promotor ELS.ID</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <script>
 /* ===== ALAMAT SERVER: ganti tulisan GANTI_DENGAN_... di bawah dengan alamat web app Apps Script (berakhiran /exec). Boleh juga diisi di config.js. ===== */
 window.ELS_API_URL = window.ELS_API_URL || 'https://script.google.com/macros/s/AKfycbyZY2VSSV2CpH9xSmONjEPlxFVhhsC3n2ELxi-4bGTAZDNwK5aJ6BSOXgA2fZd3euDF/exec';
@@ -2128,6 +2128,7 @@ window.ELS_API_URL = window.ELS_API_URL || 'https://script.google.com/macros/s/A
         <div id="installAppWarn" class="hidden" style="text-align:left;font-size:13px;line-height:1.6;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:14px;padding:12px 14px;margin-bottom:10px"></div>
         <div id="installAppSteps" class="card card-pad" style="text-align:left;font-size:13px;line-height:1.7;background:#f9fafb"></div>
         <div style="height:14px"></div>
+        <button id="btnOpenPwa" class="btn btn-primary hidden" onclick="openPwaApp_()" style="margin-bottom:8px">Buka Versi Aplikasi</button>
         <button id="btnInstallNow" class="btn btn-primary hidden" onclick="installNow_()" style="margin-bottom:8px">Pasang Sekarang</button>
         <button class="btn btn-primary" onclick="dismissInstallPrompt(true)">Mengerti, Jangan Tampilkan Lagi</button>
         <button class="btn btn-light" style="margin-top:8px" onclick="dismissInstallPrompt(false)">Nanti Saja</button>
@@ -4600,8 +4601,48 @@ window.ELS_API_URL = window.ELS_API_URL || 'https://script.google.com/macros/s/A
     }
 
     // Isi & tampilkan modal. Dipakai pop-up otomatis setelah login DAN tombol "Pasang di Layar Utama" di Profil.
+    // Di dalam Apps Script (alamat script.google.com) aplikasi TIDAK bisa dipasang: HP hanya membuat pintasan biasa yang tetap terbuka di browser.
+    // Jadi kotak ini mengarahkan ke versi aplikasi yang memang bisa dipasang (alamat diisi admin di CONFIG: ALAMAT_APLIKASI_PWA).
+    function inAppsScript_(){ return inFrame_() && window.ELS_STANDALONE !== true; }
+    function copyPwaAddress_(){
+      var u = appData && appData.pwaUrl; if(!u) return;
+      function ok(){ showToast({tone:'success', title:'Alamat disalin', text:'Tempel di Chrome / Safari.', duration:4000}); }
+      try{ navigator.clipboard.writeText(u).then(ok, function(){ window.prompt('Salin alamat ini:', u); }); }catch(e){ window.prompt('Salin alamat ini:', u); }
+    }
+    function openPwaApp_(){
+      var u = appData && appData.pwaUrl; if(!u) return;
+      var w = null; try{ w = window.open(u, '_blank'); }catch(e){}
+      if(!w){ try{ navigator.clipboard.writeText(u); }catch(e){} showToast({tone:'info', title:'Alamat disalin', text:'Tempel di Chrome (Android) atau Safari (iPhone).', duration:6000}); }
+    }
+    function openInstallViaPwa_(){
+      var u = appData && appData.pwaUrl, ios = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
+      var ic = document.querySelector('link[rel="apple-touch-icon"]'), im = document.getElementById('installAppIcon'); if(ic && im) im.src = ic.href;
+      // Dibuka dari dalam aplikasi lain (WhatsApp/Facebook/dll): tombol buka pun tidak akan bisa memasang di sana. Salin alamat versi aplikasi yang BENAR.
+      var warn = document.getElementById('installAppWarn');
+      if(inAppBrowser_()){
+        warn.innerHTML = '<b>Anda membuka aplikasi dari dalam aplikasi lain</b> (WhatsApp, Facebook, dll). Di sini pilihan memasang <b>tidak tersedia</b>. ' +
+          'Buka alamat versi aplikasi lewat <b>' + (ios ? 'Safari' : 'Chrome') + '</b>.' +
+          (u ? '<div style="margin-top:8px"><button type="button" class="btn btn-light" style="width:100%" onclick="copyPwaAddress_()">Salin alamat versi aplikasi</button></div>' : '');
+        warn.classList.remove('hidden');
+      } else warn.classList.add('hidden');
+      document.getElementById('btnInstallNow').classList.add('hidden');
+      document.getElementById('btnOpenPwa').classList.toggle('hidden', !u);
+      var st = document.getElementById('installAppSteps'); st.classList.remove('hidden');
+      st.innerHTML = u
+        ? '<b>Supaya jadi aplikasi sungguhan (ikon sendiri, terbuka tanpa browser):</b><br>' +
+          '1. Ketuk <b>Buka Versi Aplikasi</b> di bawah<br>' +
+          '2. Login dengan PIN di halaman yang terbuka<br>' +
+          (ios ? '3. Di Safari: ketuk <b>Bagikan</b> → <b>Tambah ke Layar Utama</b>' : '3. Ketuk <b>Pasang Sekarang</b> (atau menu <b>⋮</b> → <b>Instal aplikasi</b>)') +
+          '<div style="margin-top:8px;color:#6b7280">Memasang dari halaman ini saja hanya membuat <b>pintasan biasa</b> yang tetap terbuka di browser.</div>'
+        : '<b>Versi aplikasi yang bisa dipasang belum diaktifkan.</b><br>Dari halaman ini yang bisa dibuat hanya pintasan biasa (tetap terbuka di browser).' +
+          '<div style="margin-top:8px;color:#6b7280">Untuk admin: isi alamat GitHub Pages di sheet <b>CONFIG</b>, baris <b>ALAMAT_APLIKASI_PWA</b> (menu Setup Config Default membuat barisnya).</div>';
+      document.getElementById('installAppModal').classList.remove('hidden');
+    }
+
     function openInstallModal_(){
       if(isRunningStandalone_()){ showToast({tone:'success', title:'Sudah terpasang', text:'Aplikasi ini sudah dibuka sebagai aplikasi.', duration:4000}); return; }
+      if(inAppsScript_()){ openInstallViaPwa_(); return; }
+      document.getElementById('btnOpenPwa').classList.add('hidden');
       document.getElementById('installAppSteps').innerHTML = installStepsHtml_();
       var ic = document.querySelector('link[rel="apple-touch-icon"]'), im = document.getElementById('installAppIcon');
       if(ic && im) im.src = ic.href;
@@ -7291,7 +7332,7 @@ window.ELS_API_URL = window.ELS_API_URL || 'https://script.google.com/macros/s/A
 
     /* ===== Menu Favorit di beranda promotor: dipilih manager (Pengaturan Admin) ===== */
     /* ===== Versi: memastikan deploy server dan aplikasi sama ===== */
-    var CLIENT_VERSION = '2026-11-06.2';
+    var CLIENT_VERSION = '2026-11-06.3';
     var versionWarned_ = false;
     function syncInstallButtons_(){
       Array.prototype.forEach.call(document.querySelectorAll('.btnOpenInstall'), function(b){ b.classList.toggle('hidden', isRunningStandalone_()); });

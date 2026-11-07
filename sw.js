@@ -2,8 +2,8 @@
    - Halaman & config.js: jaringan dulu (pembaruan langsung terlihat), cadangan dari cache bila offline / lambat > 4 detik.
    - Ikon: cache dulu.
    - Semua permintaan ke luar (server Apps Script, font, pustaka) TIDAK disentuh. */
-const CACHE = 'els-absensi-2026-11-06.2';
-const SHELL = ['./', 'index.html', 'cek.html', 'config.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'];
+const CACHE = 'els-absensi-2026-11-06.3';
+const SHELL = ['./', 'index.html', 'cek.html', 'config.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'favicon-32.png'];
 
 self.addEventListener('install', function(e){
   e.waitUntil(caches.open(CACHE).then(function(c){
